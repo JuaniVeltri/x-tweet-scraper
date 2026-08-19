@@ -108,6 +108,17 @@ function readVerified(result: unknown): boolean {
         get(result, 'verification.verified') ??
         get(result, 'legacy.verified') ??
         get(result, 'verified');
+    if (legacyVerified === true) return true;
+
     const blue = get(result, 'is_blue_verified') ?? get(result, 'legacy.is_blue_verified');
-    return legacyVerified === true || blue === true;
+    if (blue === true) return true;
+
+    // Business (gold) and Government (grey) accounts carry a checkmark on the
+    // platform while reporting `verified: false` and `is_blue_verified: false`
+    // — @apify is a live example. Reading only the two booleans above would
+    // report a visibly-verified account as unverified and quietly drop it from
+    // an `onlyVerified` run.
+    const verifiedType =
+        getFirstString(result, ['verification.verified_type', 'legacy.verified_type']) ?? 'None';
+    return verifiedType !== 'None' && verifiedType.length > 0;
 }

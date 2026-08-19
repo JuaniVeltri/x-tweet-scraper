@@ -149,6 +149,40 @@ describe('a paid entitlement is honoured', () => {
     });
 });
 
+describe('the "limited" flag reports honestly', () => {
+    it('is true when the entitlement is what truncated the run', async () => {
+        const emitter = new ResultEmitter(FREE, 25, { sink: async () => undefined });
+        await drain(emitter);
+        // Asked for 25, entitled to 10, and the supply had more to give.
+        expect(emitter.count).toBe(FREE_TIER_CAP);
+        expect(emitter.wasLimitedByEntitlement).toBe(true);
+    });
+
+    it('is false when the request was the lower ceiling', async () => {
+        const emitter = new ResultEmitter(FREE, 4, { sink: async () => undefined });
+        await drain(emitter);
+        // The user asked for less than they were entitled to; the cap is not
+        // what shortened this run, so claiming otherwise would be misleading.
+        expect(emitter.count).toBe(4);
+        expect(emitter.wasLimitedByEntitlement).toBe(false);
+    });
+
+    it('is false when the run simply ran out of tweets', async () => {
+        const emitter = new ResultEmitter(FREE, 1000, { sink: async () => undefined });
+        // Only three tweets exist; the cap was never reached.
+        await emitter.offerAll([tweet(1), tweet(2), tweet(3)]);
+        await emitter.finalize();
+        expect(emitter.count).toBe(3);
+        expect(emitter.wasLimitedByEntitlement).toBe(false);
+    });
+
+    it('is false for a paid run that fits inside its entitlement', async () => {
+        const emitter = new ResultEmitter(PAID, 50, { sink: async () => undefined });
+        await drain(emitter, 100);
+        expect(emitter.wasLimitedByEntitlement).toBe(false);
+    });
+});
+
 describe('resolution fails closed', () => {
     const failing: Record<string, EntitlementSource> = {
         'the service is down': {

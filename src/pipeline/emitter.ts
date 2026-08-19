@@ -46,10 +46,10 @@ export class ResultEmitter {
 
     constructor(
         private readonly entitlement: Entitlement,
-        requestedMaxResults: number,
+        private readonly requested: number,
         options: EmitterOptions = {},
     ) {
-        this.limit = effectiveCap(entitlement, requestedMaxResults);
+        this.limit = effectiveCap(entitlement, requested);
         this.batchSize = options.batchSize ?? 50;
         this.sink = options.sink ?? (async (items) => Actor.pushData([...items]));
     }
@@ -73,9 +73,22 @@ export class ResultEmitter {
         return Math.max(0, this.limit - (this.emitted + this.buffer.length));
     }
 
-    /** True when the entitlement — not the request — is what truncated the run. */
+    /**
+     * True when the entitlement — not the request — is what truncated the run.
+     *
+     * Suppression alone is the wrong signal: a well-behaved producer stops
+     * offering once {@link isOpen} goes false, so nothing is ever suppressed and
+     * a capped run would report itself as unlimited. What actually matters is
+     * whether the ceiling that bound the run came from the entitlement, and
+     * whether the run reached it.
+     */
     get wasLimitedByEntitlement(): boolean {
-        return this.entitlement.tier === 'free' && this.suppressed > 0;
+        // The request asked for no more than we were entitled to: whatever
+        // truncated the run, it was not the entitlement.
+        if (this.entitlement.cap >= this.requested) return false;
+        // The entitlement was the lower ceiling — but it only *bit* if the run
+        // actually ran out of room, rather than running out of tweets.
+        return this.emitted >= this.limit || this.suppressed > 0;
     }
 
     /**
