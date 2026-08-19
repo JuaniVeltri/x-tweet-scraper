@@ -22,7 +22,7 @@ import { retryDelayMs, sleep } from '../util/backoff.js';
 import { classifyFailure, extractApiCodes, XApiError } from '../util/errors.js';
 import { DEFAULT_FEATURES, DEFAULT_FIELD_TOGGLES, missingFeaturesFrom } from './features.js';
 import type { GuestTokenPool } from './guest-token.js';
-import { headerValue, performRequest, type HttpResponse } from './http.js';
+import { headerValue, performRequest, type HttpRequest, type HttpResponse } from './http.js';
 import type { QueryIdResolver } from './query-ids.js';
 
 export interface GraphQLCall {
@@ -61,6 +61,14 @@ export interface ClientOptions {
     readonly sleepFn?: (ms: number) => Promise<void>;
     /** See {@link DynamicHeaderProvider}. Absent by default. */
     readonly dynamicHeaders?: DynamicHeaderProvider;
+    /**
+     * The transport. Defaults to the real HTTP client.
+     *
+     * Injectable so the retry policy — which is the whole point of this class —
+     * can be exercised against every failure shape without a socket. Mocking at
+     * the module boundary instead would mostly test the mock.
+     */
+    readonly transport?: (request: HttpRequest) => Promise<HttpResponse>;
 }
 
 /** Error tallies surfaced in the run summary (§7 observability). */
@@ -120,7 +128,8 @@ export class XClient {
             );
 
             this.stats.requests += 1;
-            const response = await performRequest({
+            const send = this.options.transport ?? performRequest;
+            const response = await send({
                 url,
                 headers: {
                     authorization: `Bearer ${X_PUBLIC_WEB_BEARER}`,

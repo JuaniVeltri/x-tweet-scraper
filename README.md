@@ -1,14 +1,10 @@
-<p align="center">
-  <img src="docs/assets/banner.png" alt="X (Twitter) GraphQL Tweet Scraper — an Apify Actor that reads X's internal GraphQL API over plain HTTP, with guest-token rotation, cursor pagination and a server-authoritative free-tier cap" width="100%">
-</p>
+![X (Twitter) GraphQL Tweet Scraper — a browserless Apify Actor that reads X's internal GraphQL API over plain HTTP](https://raw.githubusercontent.com/JuaniVeltri/x-tweet-scraper/main/docs/assets/banner.png)
 
 # x-tweet-scraper
 
 [![CI](https://github.com/JuaniVeltri/x-tweet-scraper/actions/workflows/ci.yaml/badge.svg)](https://github.com/JuaniVeltri/x-tweet-scraper/actions/workflows/ci.yaml)
-[![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](package.json)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
-[![Apify SDK](https://img.shields.io/badge/Apify%20SDK-v3-FF9013)](https://docs.apify.com/sdk/js/)
-[![No browser](https://img.shields.io/badge/headless%20browser-none-success)](#the-browserless-approach)
+
+`Node ≥20` · `TypeScript strict` · `Apify SDK v3` · `no headless browser` · `382 tests`
 
 A browserless Apify Actor that collects public posts from X (Twitter) over its internal GraphQL
 API, normalizes them to a fixed contract, and enforces a free-tier limit that cannot be lifted
@@ -595,32 +591,34 @@ and `migrating`, so a migrated run resumes instead of restarting and re-emitting
 ## Tests
 
 ```bash
-npm test                # 214 tests
+npm test                # 382 tests
 npm run test:coverage   # with the coverage report
 ```
 
 The suite runs against **real captured API responses**, not hand-written fixtures.
 
-Coverage sits at **57%** overall, reported per module rather than as one blended
-number — the parts that are graded and the parts where a silent bug would be
-expensive are covered hard, while the HTTP transport is deliberately untested
-because mocking an HTTP client mostly tests the mock. That code is verified by
-live runs on the platform instead.
+Coverage sits at **83%** overall, reported per module rather than as one blended
+number. The parts that are graded, and the parts where a silent bug would be
+expensive, are covered hard. The HTTP transport itself is deliberately untested —
+mocking an HTTP client mostly tests the mock — and the top-level orchestrator is
+verified by live runs on the platform instead.
 
 | Module | Statements | Lines | Why |
 |---|---|---|---|
-| `util/errors.ts` | 100% | 100% | The failure classification the whole retry policy rests on. |
+| `util/errors.ts` | 100% | 100% | The classification the whole retry policy rests on. |
+| `x/client.ts` | 100% | 100% | The retry loop: every failure shape, every reaction. |
+| `x/operations/*` | 100% | 100% | Both live user schemas, and the tweet paths. |
 | `x/guest-token.ts` | 98% | 98% | Rotation, TTL, retirement, proxy affinity. |
-| `normalize/tweet.ts` | 93% | 100% | The output contract clients build on. |
+| `pipeline/state.ts` | 98% | 97% | Resume after migration. |
+| `x/normalize/*` | 94% | 99% | The output contract clients build on. |
 | `pipeline/emitter.ts` | 93% | 97% | The cap. Every bypass path has a test. |
 | `filters/apply.ts` | 93% | 94% | Filter semantics. |
-| `x/query-ids.ts` | 91% | 100% | The resolution chain and its ordering. |
-| `entitlements/verify.ts` | 85% | 92% | Signatures, nonce, freshness. |
-| `x/http.ts` | 0% | 0% | Transport — exercised live, not mocked. |
+| `entitlements/*` | 83% | 86% | Identity, signing, both authorities, fail-closed. |
+| `x/http.ts`, `pipeline/run.ts` | low | low | Transport and orchestration — exercised live. |
 
-### Two bugs these tests found
+### Three bugs these tests found
 
-Worth recording, because both were invisible in normal operation and neither
+Worth recording, because all three were invisible in normal operation and none
 would have been caught by reading the code.
 
 **Guest-token rotation never happened.** The pool picked the least-recently-used
@@ -635,6 +633,11 @@ delay-seconds check, fell through to `Date.parse`, which reads a bare number as
 a *year* — resolving to a date in the past, clamping to zero, and retrying with
 no backoff at all. The worst possible response to a 429. Both branches are now
 matched by shape before being trusted.
+
+**Business and Government accounts read as unverified.** `verified` was taken
+from `verified` and `is_blue_verified`, both of which are false for gold and
+grey checkmarks even though X displays one. `@apify` is exactly that case, so an
+`onlyVerified` run silently dropped it. `verified_type` is now consulted too.
 
 - **The free-tier cap** — the required proof that a free user requesting 1000 receives exactly 10,
   plus a suite that takes the adversary's side: oversized `maxResults`, a downed service, a service

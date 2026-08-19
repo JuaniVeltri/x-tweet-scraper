@@ -8,10 +8,15 @@
  * forged response — and asserts that the attempt fails closed.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { FREE_TIER_CAP } from '../src/config/constants.js';
-import { effectiveCap, resolveEntitlement, FAIL_CLOSED } from '../src/entitlements/resolver.js';
+import {
+    buildSources,
+    effectiveCap,
+    FAIL_CLOSED,
+    resolveEntitlement,
+} from '../src/entitlements/resolver.js';
 import type { Entitlement, EntitlementSource, RunIdentity } from '../src/entitlements/types.js';
 import { canonicalize, sign, verifyResponse } from '../src/entitlements/verify.js';
 import { ResultEmitter } from '../src/pipeline/emitter.js';
@@ -295,5 +300,82 @@ describe('claims cannot be forged or replayed', () => {
         ]) {
             expect(canonicalize({ ...claim, ...mutation })).not.toBe(base);
         }
+    });
+});
+
+describe('the source chain', () => {
+    /** A source that answers, and one that cannot. */
+    const answers = (entitlement: Entitlement): EntitlementSource => ({
+        name: 'signed-endpoint',
+        resolve: async () => entitlement,
+    });
+    const cannotAnswer: EntitlementSource = {
+        name: 'signed-endpoint',
+        resolve: async () => null,
+    };
+
+    it('stops at the first source that answers', async () => {
+        const second = { name: 'key-value-store' as const, resolve: vi.fn(async () => PAID) };
+        const entitlement = await resolveEntitlement({
+            identity: VERIFIED,
+            sources: [answers(PAID), second],
+        });
+        expect(entitlement.tier).toBe('paid');
+        expect(second.resolve).not.toHaveBeenCalled();
+    });
+
+    it('falls through to the next source when the first cannot answer', async () => {
+        // "Unreachable" is not "not entitled" — the fallback must get its turn,
+        // or a paying customer is capped by an outage.
+        const entitlement = await resolveEntitlement({
+            identity: VERIFIED,
+            sources: [cannotAnswer, answers(PAID)],
+        });
+        expect(entitlement.tier).toBe('paid');
+    });
+
+    it('stops at a verified denial rather than shopping for a better answer', async () => {
+        const second = { name: 'key-value-store' as const, resolve: vi.fn(async () => PAID) };
+        const entitlement = await resolveEntitlement({
+            identity: VERIFIED,
+            sources: [answers(FREE), second],
+        });
+        expect(entitlement.tier).toBe('free');
+        expect(second.resolve).not.toHaveBeenCalled();
+    });
+
+    it('keeps going when a source throws', async () => {
+        const throwing: EntitlementSource = {
+            name: 'signed-endpoint',
+            resolve: () => Promise.reject(new Error('boom')),
+        };
+        const entitlement = await resolveEntitlement({
+            identity: VERIFIED,
+            sources: [throwing, answers(PAID)],
+        });
+        expect(entitlement.tier).toBe('paid');
+    });
+});
+
+describe('buildSources reads the environment', () => {
+    it('builds both authorities when both are configured', () => {
+        const sources = buildSources({
+            ENTITLEMENTS_URL: 'https://e/x',
+            ENTITLEMENTS_SECRET: 's',
+            ENTITLEMENTS_KV_STORE: 'store',
+            ENTITLEMENTS_API_TOKEN: 't',
+        });
+        expect(sources.map((s) => s.name)).toEqual(['signed-endpoint', 'key-value-store']);
+    });
+
+    it('puts the signed endpoint first, since it is the stronger authority', () => {
+        const sources = buildSources({ ENTITLEMENTS_URL: 'https://e/x', ENTITLEMENTS_SECRET: 's' });
+        expect(sources[0]?.name).toBe('signed-endpoint');
+    });
+
+    it('returns an empty chain when nothing is configured', () => {
+        // Which resolves to free — absent configuration must never mean
+        // "everyone is unlimited".
+        expect(buildSources({})).toEqual([]);
     });
 });

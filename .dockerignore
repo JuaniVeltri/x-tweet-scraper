@@ -19,3 +19,4 @@ CLAUDE.md
 .DS_Store
 *.md
 !README.md
+!.actor/README.md
