@@ -1,0 +1,272 @@
+{
+    "actorSpecification": 1,
+    "fields": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "description": "One public tweet, normalized. Missing values are null — never omitted and never undefined — so consumers can rely on every key being present. IDs are strings because X's snowflake IDs exceed Number.MAX_SAFE_INTEGER. Timestamps are ISO-8601 UTC.",
+        "properties": {
+            "id": {
+                "type": "string",
+                "title": "Tweet ID",
+                "description": "X's numeric tweet ID, as a string.",
+                "example": "2087572956683567110"
+            },
+            "url": {
+                "type": "string",
+                "title": "URL",
+                "description": "Canonical permalink.",
+                "example": "https://x.com/apify/status/2087572956683567110"
+            },
+            "text": {
+                "type": "string",
+                "title": "Text",
+                "description": "Full text, HTML-unescaped, with t.co shortlinks expanded to their destinations. For tweets over 280 characters this is the complete note text, not the truncated copy.",
+                "example": "Everything runs on Apify. One day. San Francisco."
+            },
+            "lang": {
+                "type": ["string", "null"],
+                "title": "Language",
+                "description": "ISO-639-1 code detected by X, or null when X reports none.",
+                "example": "en"
+            },
+            "createdAt": {
+                "type": "string",
+                "title": "Created at",
+                "description": "When the tweet was posted (ISO-8601 UTC).",
+                "example": "2026-08-12T16:12:32.000Z"
+            },
+            "conversationId": {
+                "type": ["string", "null"],
+                "title": "Conversation ID",
+                "description": "ID of the thread this tweet belongs to.",
+                "example": "2087572956683567110"
+            },
+            "isReply": {
+                "type": "boolean",
+                "title": "Is reply",
+                "example": false
+            },
+            "isRetweet": {
+                "type": "boolean",
+                "title": "Is retweet",
+                "example": false
+            },
+            "isQuote": {
+                "type": "boolean",
+                "title": "Is quote",
+                "example": false
+            },
+            "inReplyToId": {
+                "type": ["string", "null"],
+                "title": "In reply to",
+                "description": "ID of the tweet being replied to, or null.",
+                "example": null
+            },
+            "quotedTweetId": {
+                "type": ["string", "null"],
+                "title": "Quoted tweet",
+                "description": "ID of the quoted tweet, or null.",
+                "example": null
+            },
+            "author": {
+                "type": "object",
+                "title": "Author",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "title": "Author ID",
+                        "example": "3510729917"
+                    },
+                    "username": {
+                        "type": "string",
+                        "title": "Handle",
+                        "description": "Handle without the leading @.",
+                        "example": "apify"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Display name",
+                        "example": "Apify"
+                    },
+                    "verified": {
+                        "type": "boolean",
+                        "title": "Verified",
+                        "description": "True for a blue, gold (business) or grey (government) checkmark.",
+                        "example": true
+                    },
+                    "followers": {
+                        "type": "number",
+                        "title": "Followers",
+                        "example": 12047
+                    },
+                    "following": {
+                        "type": "number",
+                        "title": "Following",
+                        "example": 296
+                    }
+                },
+                "required": ["id", "username", "name", "verified", "followers", "following"]
+            },
+            "metrics": {
+                "type": "object",
+                "title": "Metrics",
+                "properties": {
+                    "likes": { "type": "number", "title": "Likes", "example": 17 },
+                    "retweets": { "type": "number", "title": "Retweets", "example": 4 },
+                    "replies": { "type": "number", "title": "Replies", "example": 2 },
+                    "quotes": { "type": "number", "title": "Quotes", "example": 0 },
+                    "bookmarks": {
+                        "type": ["number", "null"],
+                        "title": "Bookmarks",
+                        "description": "Null when X does not expose it — distinct from a real zero.",
+                        "example": 1
+                    },
+                    "views": {
+                        "type": ["number", "null"],
+                        "title": "Views",
+                        "description": "Null for tweets whose view count is not public.",
+                        "example": 2332
+                    }
+                },
+                "required": ["likes", "retweets", "replies", "quotes", "bookmarks", "views"]
+            },
+            "entities": {
+                "type": "object",
+                "title": "Entities",
+                "properties": {
+                    "hashtags": {
+                        "type": "array",
+                        "title": "Hashtags",
+                        "description": "Without the leading #.",
+                        "items": { "type": "string" },
+                        "example": ["buildinpublic"]
+                    },
+                    "mentions": {
+                        "type": "array",
+                        "title": "Mentions",
+                        "description": "Handles without the leading @.",
+                        "items": { "type": "string" },
+                        "example": ["apify"]
+                    },
+                    "urls": {
+                        "type": "array",
+                        "title": "URLs",
+                        "description": "Expanded destinations, never the t.co shortlink.",
+                        "items": { "type": "string" },
+                        "example": ["http://apify.it/X054l"]
+                    },
+                    "media": {
+                        "type": "array",
+                        "title": "Media",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["photo", "video", "animated_gif"],
+                                    "title": "Media type"
+                                },
+                                "url": { "type": "string", "title": "Media URL" },
+                                "thumbnail": {
+                                    "type": ["string", "null"],
+                                    "title": "Thumbnail",
+                                    "description": "Still frame for video and GIFs; null for photos, where it would duplicate url."
+                                }
+                            },
+                            "required": ["type", "url", "thumbnail"]
+                        }
+                    }
+                },
+                "required": ["hashtags", "mentions", "urls", "media"]
+            },
+            "source": {
+                "type": ["string", "null"],
+                "title": "Source",
+                "description": "Client application that posted the tweet, with the anchor markup stripped.",
+                "example": "Twitter Web App"
+            },
+            "scrapedAt": {
+                "type": "string",
+                "title": "Scraped at",
+                "description": "When this item was extracted (ISO-8601 UTC).",
+                "example": "2026-08-19T01:51:12.965Z"
+            }
+        },
+        "required": [
+            "id",
+            "url",
+            "text",
+            "lang",
+            "createdAt",
+            "conversationId",
+            "isReply",
+            "isRetweet",
+            "isQuote",
+            "inReplyToId",
+            "quotedTweetId",
+            "author",
+            "metrics",
+            "entities",
+            "source",
+            "scrapedAt"
+        ]
+    },
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "description": "The columns most runs are actually read for.",
+            "transformation": {
+                "flatten": ["author", "metrics"],
+                "fields": [
+                    "createdAt",
+                    "author.username",
+                    "text",
+                    "metrics.likes",
+                    "metrics.retweets",
+                    "metrics.replies",
+                    "metrics.views",
+                    "url"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "createdAt": { "label": "Posted", "format": "date" },
+                    "author.username": { "label": "Author" },
+                    "text": { "label": "Text", "format": "text" },
+                    "metrics.likes": { "label": "Likes", "format": "number" },
+                    "metrics.retweets": { "label": "Retweets", "format": "number" },
+                    "metrics.replies": { "label": "Replies", "format": "number" },
+                    "metrics.views": { "label": "Views", "format": "number" },
+                    "url": { "label": "Link", "format": "link" }
+                }
+            }
+        },
+        "author": {
+            "title": "Authors",
+            "description": "Profile fields resolved for each tweet's author.",
+            "transformation": {
+                "flatten": ["author"],
+                "fields": [
+                    "author.username",
+                    "author.name",
+                    "author.id",
+                    "author.verified",
+                    "author.followers",
+                    "author.following"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "author.username": { "label": "Handle" },
+                    "author.name": { "label": "Name" },
+                    "author.id": { "label": "User ID" },
+                    "author.verified": { "label": "Verified", "format": "boolean" },
+                    "author.followers": { "label": "Followers", "format": "number" },
+                    "author.following": { "label": "Following", "format": "number" }
+                }
+            }
+        }
+    }
+}
