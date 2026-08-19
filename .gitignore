@@ -28,3 +28,7 @@ coverage/
 # Agent working notes — local only, intentionally not part of the deliverable
 CLAUDE.md
 .claude/
+
+# Vercel link/build metadata for the entitlements service
+.vercel/
+services/**/.vercel/

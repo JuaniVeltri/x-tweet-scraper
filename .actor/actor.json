@@ -10,5 +10,9 @@
     "input": "./INPUT_SCHEMA.json",
     "readme": "../README.md",
     "minMemoryMbytes": 256,
-    "maxMemoryMbytes": 4096
+    "maxMemoryMbytes": 4096,
+    "environmentVariables": {
+        "ENTITLEMENTS_URL": "https://x-tweet-scraper-entitlements.vercel.app/api/entitlement",
+        "ENTITLEMENTS_SECRET": "@x-entitlements-secret"
+    }
 }
