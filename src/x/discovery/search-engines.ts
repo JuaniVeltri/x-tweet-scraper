@@ -93,12 +93,11 @@ export async function discoverHandles(
     const maxQueries = options.maxQueries ?? DEFAULTS.maxDiscoveryQueries;
     const maxHandles = options.maxHandles ?? DEFAULTS.maxDiscoveredHandles;
 
-    const found = new Set<string>();
+    const evidence = new Map<string, HandleEvidence>();
     let engineUsed: string | null = null;
     let queriesRun = 0;
 
     for (const term of terms.slice(0, maxQueries)) {
-        if (found.size >= maxHandles) break;
         queriesRun += 1;
 
         const result = await queryEngines(term, options.proxyUrl);
@@ -108,19 +107,71 @@ export async function discoverHandles(
         }
 
         engineUsed ??= result.engine;
-        for (const handle of result.handles) {
-            if (found.size >= maxHandles) break;
-            found.add(handle);
-        }
+        // Every candidate is recorded, not just the first `maxHandles`. The cut
+        // happens after ranking, so a handle that only shows up on the last
+        // term still gets to compete with the ones seen first.
+        result.handles.forEach((handle, index) => {
+            const seen = evidence.get(handle) ?? { terms: new Set(), bestRank: index };
+            seen.terms.add(term);
+            seen.bestRank = Math.min(seen.bestRank, index);
+            evidence.set(handle, seen);
+        });
+
         log.info('Discovered handles for term', {
             term,
             engine: result.engine,
             found: result.handles.length,
-            total: found.size,
+            candidates: evidence.size,
         });
     }
 
-    return { handles: [...found], engine: engineUsed, queriesRun };
+    const handles = rankHandles(evidence).slice(0, maxHandles);
+    if (evidence.size > handles.length) {
+        log.info('Ranked discovery candidates', {
+            candidates: evidence.size,
+            kept: handles.length,
+            dropped: evidence.size - handles.length,
+        });
+    }
+
+    return { handles, engine: engineUsed, queriesRun };
+}
+
+/** What a run learned about one candidate handle across all its queries. */
+interface HandleEvidence {
+    /** Distinct terms this handle answered for. */
+    readonly terms: Set<string>;
+    /** Best (lowest) position the engine gave it. */
+    bestRank: number;
+}
+
+/**
+ * Order candidates by how much evidence backs them.
+ *
+ * Taking the first N in arrival order treats a handle that surfaced for three
+ * separate terms the same as one that appeared once, at the bottom of a single
+ * result page. Since each kept handle costs a profile lookup against a
+ * 150/window operation and then a share of the timeline budget, the ones that
+ * earn those requests should be the best-evidenced.
+ *
+ * Term coverage outranks engine position: appearing for two different terms is
+ * a stronger signal of topical relevance than ranking first for one, because
+ * search-engine position is optimised for a page's overall authority rather
+ * than for whether an account actually posts about the subject.
+ *
+ * Exported for tests.
+ */
+export function rankHandles(evidence: ReadonlyMap<string, HandleEvidence>): string[] {
+    return [...evidence.entries()]
+        .sort(([handleA, a], [handleB, b]) => {
+            const byCoverage = b.terms.size - a.terms.size;
+            if (byCoverage !== 0) return byCoverage;
+            const byRank = a.bestRank - b.bestRank;
+            if (byRank !== 0) return byRank;
+            // Alphabetical last, so the same inputs always give the same run.
+            return handleA.localeCompare(handleB);
+        })
+        .map(([handle]) => handle);
 }
 
 /** Walk the cascade for one term; first engine that yields handles wins. */

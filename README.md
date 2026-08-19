@@ -158,6 +158,12 @@ Three details carry it:
 - **Results are term-filtered.** Discovery returns accounts that rank for a topic, not tweets
   about it. Without the final filter the run would emit those accounts' entire timelines and
   quietly redefine what `searchTerms` means.
+- **Candidates are ranked before the cut.** Every handle any engine returns is recorded, then
+  ordered by how many distinct terms it answered for, with engine position as the tie-break.
+  Taking the first N in arrival order would treat a handle that surfaced for three separate terms
+  the same as one that appeared once at the bottom of a single page — and each kept handle costs
+  a profile lookup plus a share of the timeline budget. What gets dropped is logged, never
+  silently truncated.
 
 **What it is not.** This is not an index of every tweet matching a query. It returns tweets *from
 accounts that rank for the topic*; a matching tweet from an account no engine surfaced will not
@@ -586,8 +592,16 @@ The suite runs against **real captured API responses**, not hand-written fixture
 - **Guest rate limits are the ceiling.** `UserTweets` allows 50 requests per token per window.
   Large runs are paced by token rotation and proxy IP diversity.
 - **`x-client-transaction-id`** is not currently required — every request in this work succeeded
-  without it — but X has been rolling it out. If it becomes mandatory, it belongs in
-  `src/x/client.ts` alongside the other headers.
+  without it — but X has been rolling it out. The algorithm is deliberately not implemented: it
+  would be speculative work against a header nothing is asking for, and a bug in it would break
+  requests that currently succeed. What does exist is the seam. `XClient` accepts a
+  `dynamicHeaders` provider, resolved per attempt (so a single-use value is recomputed on retry)
+  and merged over the static headers, so the algorithm plugs in without touching the retry loop
+  or any call site.
+- **Topic discovery depends on third-party engines.** DuckDuckGo returns 403 to this client's TLS
+  fingerprint, Brave answers; both have flipped between runs. The four-engine cascade is the
+  mitigation, but a run where every engine refuses finds nothing for that term and says so in the
+  log rather than failing.
 - **Residential proxy unmeasured**, for the plan reason described above.
 
 ---

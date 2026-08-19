@@ -9,7 +9,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { extractHandles, matchesAnyTerm } from '../src/x/discovery/search-engines.js';
+import {
+    extractHandles,
+    matchesAnyTerm,
+    rankHandles,
+} from '../src/x/discovery/search-engines.js';
 
 describe('extractHandles', () => {
     it('reads handles from plain result links', () => {
@@ -91,5 +95,50 @@ describe('matchesAnyTerm', () => {
 
     it('matches inside longer words, which is intended for topic search', () => {
         expect(matchesAnyTerm('webscraping tools', ['scraping'])).toBe(true);
+    });
+});
+
+describe('rankHandles', () => {
+    const ev = (terms: string[], bestRank: number) => ({ terms: new Set(terms), bestRank });
+
+    it('puts breadth of term coverage above engine position', () => {
+        // `broad` ranked last for its terms but answered two of them; `narrow`
+        // ranked first for one. Coverage is the stronger signal of topical
+        // relevance, because engine position reflects page authority.
+        const ranked = rankHandles(
+            new Map([
+                ['narrow', ev(['scraping'], 0)],
+                ['broad', ev(['scraping', 'apis'], 9)],
+            ]),
+        );
+        expect(ranked).toEqual(['broad', 'narrow']);
+    });
+
+    it('falls back to engine position when coverage ties', () => {
+        const ranked = rankHandles(
+            new Map([
+                ['later', ev(['scraping'], 5)],
+                ['earlier', ev(['scraping'], 1)],
+            ]),
+        );
+        expect(ranked).toEqual(['earlier', 'later']);
+    });
+
+    it('is deterministic when coverage and position both tie', () => {
+        const build = () =>
+            new Map([
+                ['zeta', ev(['t'], 2)],
+                ['alpha', ev(['t'], 2)],
+            ]);
+        // The same input must always produce the same run.
+        expect(rankHandles(build())).toEqual(['alpha', 'zeta']);
+        expect(rankHandles(build())).toEqual(rankHandles(build()));
+    });
+
+    it('returns every candidate, leaving the cut to the caller', () => {
+        const ranked = rankHandles(
+            new Map([['a', ev(['t'], 0)], ['b', ev(['t'], 1)], ['c', ev(['t'], 2)]]),
+        );
+        expect(ranked).toHaveLength(3);
     });
 });

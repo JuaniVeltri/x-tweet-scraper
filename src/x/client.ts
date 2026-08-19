@@ -33,6 +33,24 @@ export interface GraphQLCall {
     readonly fieldToggles?: Readonly<Record<string, boolean>>;
 }
 
+/**
+ * Extra headers computed per request, merged over the static ones.
+ *
+ * This is the seam for `x-client-transaction-id`. X computes that header
+ * per-request from state in its own page bundle, and has been rolling it out
+ * gradually — every request in this project succeeds without it today, which is
+ * why the algorithm is not implemented. But "not needed yet" is a poor reason
+ * to have nowhere to put it: when X does start demanding it, it plugs in here
+ * without touching the retry loop, the header set, or any call site.
+ *
+ * @param operationName The GraphQL operation about to be called.
+ * @param url The fully composed request URL.
+ */
+export type DynamicHeaderProvider = (
+    operationName: string,
+    url: string,
+) => Promise<Readonly<Record<string, string>>>;
+
 export interface ClientOptions {
     readonly maxAttempts?: number;
     readonly backoffBaseMs?: number;
@@ -41,6 +59,8 @@ export interface ClientOptions {
     /** Injectable for deterministic tests. */
     readonly random?: () => number;
     readonly sleepFn?: (ms: number) => Promise<void>;
+    /** See {@link DynamicHeaderProvider}. Absent by default. */
+    readonly dynamicHeaders?: DynamicHeaderProvider;
 }
 
 /** Error tallies surfaced in the run summary (§7 observability). */
@@ -87,6 +107,18 @@ export class XClient {
             const queryId = await this.queryIds.queryIdFor(call.operationName);
             const url = this.buildUrl(queryId, call);
 
+            // Resolved per attempt, not per call: anything computed here is
+            // expected to be single-use, so a retry must recompute it.
+            const dynamic = await this.options.dynamicHeaders?.(call.operationName, url).catch(
+                (error: unknown) => {
+                    log.warning('Dynamic header provider failed; sending without it', {
+                        operation: call.operationName,
+                        error: String(error),
+                    });
+                    return {};
+                },
+            );
+
             this.stats.requests += 1;
             const response = await performRequest({
                 url,
@@ -96,6 +128,7 @@ export class XClient {
                     'x-twitter-active-user': 'yes',
                     'x-twitter-client-language': 'en',
                     'content-type': 'application/json',
+                    ...dynamic,
                 },
                 proxyUrl: lease.proxyUrl,
                 timeoutMs: this.options.requestTimeoutMs ?? DEFAULTS.requestTimeoutMs,
