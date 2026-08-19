@@ -44,7 +44,7 @@ export function normalizeTweet(node: unknown, scrapedAt: string = nowIso()): Out
 
     // Tweet fields still live under `legacy` on both live schemas, but read
     // through a fallback so a future flattening does not break extraction.
-    const legacy = isRecord(tweet['legacy']) ? tweet['legacy'] : tweet;
+    const legacy = isRecord(tweet.legacy) ? tweet.legacy : tweet;
 
     const createdAt = xTimestampToIso(get(legacy, 'created_at'));
     if (createdAt === null) return null;

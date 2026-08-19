@@ -22,7 +22,7 @@ import type { XClient } from '../client.js';
  *   otherwise withheld — X signals all of these with an empty `tweetResult`
  *   rather than an error status, so they are ordinary outcomes to be skipped.
  */
-export async function fetchTweetById(client: XClient, tweetId: string): Promise<unknown | null> {
+export async function fetchTweetById(client: XClient, tweetId: string): Promise<unknown> {
     const data = await client.execute({
         operationName: OPERATIONS.tweetResultByRestId,
         variables: {

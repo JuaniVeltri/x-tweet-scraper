@@ -98,3 +98,24 @@ export function getFirstArray(source: unknown, paths: readonly string[]): readon
     }
     return [];
 }
+
+/**
+ * Drop keys whose value is `undefined`.
+ *
+ * Under `exactOptionalPropertyTypes` an explicitly-`undefined` property is not
+ * the same as an absent one, and several third-party option types (the Apify
+ * SDK's `ProxyConfigurationOptions`, got-scraping's `OptionsInit`) declare
+ * optional properties that do not admit `undefined`. Passing a parsed input
+ * object straight through therefore fails to type-check even though it is
+ * semantically correct — compacting it first is the honest fix.
+ */
+export type Compacted<T> = Partial<{ [K in keyof T]: Exclude<T[K], undefined> }>;
+
+export function compact<T extends object>(value: T | undefined): Compacted<T> | undefined {
+    if (value === undefined) return undefined;
+    const out: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+        if (entry !== undefined) out[key] = entry;
+    }
+    return out as Compacted<T>;
+}

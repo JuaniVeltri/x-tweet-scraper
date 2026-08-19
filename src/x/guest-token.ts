@@ -58,7 +58,8 @@ export class GuestTokenPool {
     ) {
         this.size = options.size ?? DEFAULTS.guestTokenPoolSize;
         this.ttlMs = options.ttlMs ?? DEFAULTS.guestTokenTtlMs;
-        this.nextProxyUrl = options.nextProxyUrl ?? (async () => undefined);
+        // No proxy configured: every token is minted over a direct connection.
+        this.nextProxyUrl = options.nextProxyUrl ?? (() => Promise.resolve(undefined));
         this.now = options.now ?? Date.now;
     }
 

@@ -40,7 +40,8 @@ export async function resolveRunIdentity(
     const claimedUserId = env.userId;
     const runId = env.actorRunId;
 
-    if (claimedUserId === null || claimedUserId === undefined || claimedUserId.length === 0) {
+    // `ApifyEnv` types both of these as `string | null`: null off-platform.
+    if (claimedUserId === null || claimedUserId.length === 0) {
         return {
             userId: '',
             verified: false,
@@ -48,7 +49,7 @@ export async function resolveRunIdentity(
         };
     }
 
-    if (runId === null || runId === undefined || runId.length === 0) {
+    if (runId === null || runId.length === 0) {
         return {
             userId: claimedUserId,
             verified: false,
@@ -105,9 +106,9 @@ async function defaultRunRecordFetcher(runId: string): Promise<{ userId: string 
     if (response.statusCode !== 200) return null;
 
     const parsed: unknown = JSON.parse(response.body);
-    const data = isRecord(parsed) ? parsed['data'] : undefined;
+    const data = isRecord(parsed) ? parsed.data : undefined;
     if (!isRecord(data)) return null;
 
-    const userId = data['userId'];
+    const userId = data.userId;
     return { userId: typeof userId === 'string' ? userId : null };
 }

@@ -88,8 +88,8 @@ export function verifyResponse(body: string, options: VerifyOptions): Verificati
     }
 
     if (!isRecord(parsed)) return { ok: false, failure: 'malformed' };
-    const signature = parsed['signature'];
-    const claim = parseClaim(parsed['claim']);
+    const signature = parsed.signature;
+    const claim = parseClaim(parsed.claim);
     if (typeof signature !== 'string' || claim === null) {
         return { ok: false, failure: 'malformed' };
     }
@@ -119,11 +119,11 @@ export function verifyResponse(body: string, options: VerifyOptions): Verificati
 function parseClaim(value: unknown): EntitlementClaim | null {
     if (!isRecord(value)) return null;
 
-    const userId = value['userId'];
-    const tier = value['tier'];
-    const cap = value['cap'];
-    const issuedAt = value['issuedAt'];
-    const nonce = value['nonce'];
+    const userId = value.userId;
+    const tier = value.tier;
+    const cap = value.cap;
+    const issuedAt = value.issuedAt;
+    const nonce = value.nonce;
 
     if (
         typeof userId !== 'string' ||

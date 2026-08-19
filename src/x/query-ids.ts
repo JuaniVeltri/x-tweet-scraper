@@ -225,10 +225,10 @@ export class QueryIdResolver {
 
         const ids: Record<string, string> = {};
         for (const entry of parsed) {
-            const exports = isRecord(entry) ? entry['exports'] : undefined;
+            const exports = isRecord(entry) ? entry.exports : undefined;
             if (!isRecord(exports)) continue;
-            const name = exports['operationName'];
-            const queryId = exports['queryId'];
+            const name = exports.operationName;
+            const queryId = exports.queryId;
             if (typeof name === 'string' && typeof queryId === 'string') ids[name] = queryId;
         }
 

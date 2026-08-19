@@ -1,11 +1,15 @@
 {
-  /* Type-checks the test suite without emitting. `tsconfig.json` deliberately
-     excludes `tests/` so that the build output stays flat under `dist/`. */
+  /* Type-checks the test suite without emitting, and is the project ESLint
+     uses so type-aware rules cover tests too.
+
+     `exclude` must be restated: it is inherited from the base config, which
+     excludes `tests/`, and an inherited exclude wins over this file's include. */
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist", "coverage"]
 }

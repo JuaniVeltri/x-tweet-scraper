@@ -38,8 +38,8 @@ export interface SignedEndpointConfig {
 export function signedEndpointConfigFromEnv(
     env: NodeJS.ProcessEnv = process.env,
 ): SignedEndpointConfig | null {
-    const url = env['ENTITLEMENTS_URL'];
-    const secret = env['ENTITLEMENTS_SECRET'];
+    const url = env.ENTITLEMENTS_URL;
+    const secret = env.ENTITLEMENTS_SECRET;
     if (url === undefined || url.length === 0) return null;
     if (secret === undefined || secret.length === 0) return null;
     return { url, secret };

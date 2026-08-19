@@ -4,7 +4,9 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
     {
-        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'storage/**'],
+        // eslint.config.js is plain JS and sits outside the TypeScript project,
+        // so type-aware rules cannot parse it.
+        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'storage/**', 'eslint.config.js'],
     },
     eslint.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
@@ -12,7 +14,10 @@ export default tseslint.config(
     {
         languageOptions: {
             parserOptions: {
-                projectService: true,
+                // tsconfig.test.json is the widest project: it covers src/,
+                // tests/ and the vitest config, so type-aware rules apply
+                // everywhere rather than only to the build inputs.
+                project: ['./tsconfig.test.json'],
                 tsconfigRootDir: import.meta.dirname,
             },
         },
@@ -31,15 +36,29 @@ export default tseslint.config(
                 'error',
                 { allowNumber: true, allowBoolean: true },
             ],
+            // A leading underscore marks a binding that exists only to be
+            // discarded — the rest-destructuring idiom for omitting a key.
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_',
+                    ignoreRestSiblings: true,
+                },
+            ],
             'no-console': 'error',
         },
     },
     {
-        // Tests may reach into internals and use non-null assertions on fixtures.
+        // Tests may reach into internals and use non-null assertions on
+        // fixtures. Test doubles also legitimately implement async interfaces
+        // synchronously, which is what `require-await` would otherwise flag.
         files: ['tests/**/*.ts'],
         rules: {
             '@typescript-eslint/no-non-null-assertion': 'off',
             '@typescript-eslint/explicit-module-boundary-types': 'off',
+            '@typescript-eslint/require-await': 'off',
         },
     },
 );

@@ -109,7 +109,7 @@ function tweetsOf(entry: unknown): unknown[] {
 export function unwrapTweet(node: unknown): unknown {
     if (!isRecord(node)) return node;
     if (getString(node, '__typename') === 'TweetWithVisibilityResults') {
-        const inner = node['tweet'];
+        const inner = node.tweet;
         if (inner !== undefined) return inner;
     }
     return node;

@@ -24,10 +24,6 @@ export type FailureKind =
 /** Base class so callers can `instanceof` a single type. */
 export class ScraperError extends Error {
     override readonly name: string = 'ScraperError';
-
-    constructor(message: string, options?: { cause?: unknown }) {
-        super(message, options);
-    }
 }
 
 /**

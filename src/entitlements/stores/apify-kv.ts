@@ -36,8 +36,8 @@ export interface KeyValueEntitlementConfig {
 export function keyValueConfigFromEnv(
     env: NodeJS.ProcessEnv = process.env,
 ): KeyValueEntitlementConfig | null {
-    const storeId = env['ENTITLEMENTS_KV_STORE'];
-    const token = env['ENTITLEMENTS_API_TOKEN'];
+    const storeId = env.ENTITLEMENTS_KV_STORE;
+    const token = env.ENTITLEMENTS_API_TOKEN;
     if (storeId === undefined || storeId.length === 0) return null;
     if (token === undefined || token.length === 0) return null;
     return { storeId, token };
@@ -105,9 +105,9 @@ function parseRecord(body: string): { tier: 'free' | 'paid'; cap: number } | nul
     try {
         const parsed: unknown = JSON.parse(body);
         if (!isRecord(parsed)) return null;
-        const tier = parsed['tier'];
+        const tier = parsed.tier;
         if (tier !== 'free' && tier !== 'paid') return null;
-        const rawCap = parsed['cap'];
+        const rawCap = parsed.cap;
         const cap =
             typeof rawCap === 'number' && Number.isInteger(rawCap) && rawCap >= 0
                 ? rawCap

@@ -91,7 +91,7 @@ export function headerValue(
 }
 
 /** Fetch a URL as text, for bundle/dump retrieval. Throws on non-2xx. */
-export async function fetchText(url: string, proxyUrl?: string | undefined): Promise<string> {
+export async function fetchText(url: string, proxyUrl?: string  ): Promise<string> {
     const response = await performRequest({
         url,
         proxyUrl,

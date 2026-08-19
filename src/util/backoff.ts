@@ -38,7 +38,7 @@ export function backoffDelayMs(
 export function retryDelayMs(
     attempt: number,
     options: BackoffOptions,
-    retryAfterHeader?: string | undefined,
+    retryAfterHeader?: string  ,
     random: () => number = Math.random,
     now: () => number = Date.now,
 ): number {
