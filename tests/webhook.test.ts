@@ -19,7 +19,10 @@ describe('resolveWebhookTarget', () => {
             'http://example.com:8080/hook?token=abc',
             'https://hooks.slack.com/services/T000/B000/XXXX',
         ]) {
-            expect(resolveWebhookTarget(url)).toEqual({ ok: true, url: expect.any(String) });
+            const target = resolveWebhookTarget(url);
+            expect(target.ok).toBe(true);
+            // Narrowed by the assertion above; the URL is normalized by `URL`.
+            if (target.ok) expect(target.url).toContain(new URL(url).host);
         }
     });
 
