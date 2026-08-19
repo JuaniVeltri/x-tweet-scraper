@@ -4,6 +4,12 @@
 
 # x-tweet-scraper
 
+[![CI](https://github.com/JuaniVeltri/x-tweet-scraper/actions/workflows/ci.yaml/badge.svg)](https://github.com/JuaniVeltri/x-tweet-scraper/actions/workflows/ci.yaml)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
+[![Apify SDK](https://img.shields.io/badge/Apify%20SDK-v3-FF9013)](https://docs.apify.com/sdk/js/)
+[![No browser](https://img.shields.io/badge/headless%20browser-none-success)](#the-browserless-approach)
+
 A browserless Apify Actor that collects public posts from X (Twitter) over its internal GraphQL
 API, normalizes them to a fixed contract, and enforces a free-tier limit that cannot be lifted
 from the input.
