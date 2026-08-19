@@ -9,7 +9,9 @@
             "type": "array",
             "description": "Handles whose recent tweets should be scraped, without the leading @. Backed by X's profile timeline operation, which is reachable with a guest token.",
             "editor": "stringList",
-            "prefill": ["apify"],
+            "prefill": [
+                "apify"
+            ],
             "uniqueItems": true
         },
         "tweetIds": {
@@ -20,7 +22,7 @@
             "uniqueItems": true
         },
         "searchTerms": {
-            "title": "Search terms (NOT SUPPORTED — see README)",
+            "title": "Search terms (NOT SUPPORTED \u2014 see README)",
             "type": "array",
             "description": "Free-text search. NOT SUPPORTED by this Actor: X's SearchTimeline operation is auth-walled to guest tokens, and this Actor deliberately uses guest tokens only. Supplying this field fails the run with an explicit error rather than silently returning nothing. See the README for the evidence behind that conclusion.",
             "editor": "stringList",
@@ -89,13 +91,19 @@
             "type": "string",
             "description": "Keep only tweets carrying this kind of media.",
             "editor": "select",
-            "enum": ["any", "text_only", "images", "video", "links"],
+            "enum": [
+                "any",
+                "text_only",
+                "images",
+                "video",
+                "links"
+            ],
             "enumTitles": [
-                "Any — no media constraint",
-                "Text only — no media and no links",
-                "Images — at least one photo",
-                "Video — at least one video or animated GIF",
-                "Links — at least one external URL"
+                "Any \u2014 no media constraint",
+                "Text only \u2014 no media and no links",
+                "Images \u2014 at least one photo",
+                "Video \u2014 at least one video or animated GIF",
+                "Links \u2014 at least one external URL"
             ],
             "default": "any"
         },
@@ -118,8 +126,14 @@
             "type": "string",
             "description": "Ordering, for the surfaces that support it. X's profile timeline is served newest-first, so 'top' is applied by this Actor as an engagement sort over what was fetched.",
             "editor": "select",
-            "enum": ["latest", "top"],
-            "enumTitles": ["Latest — newest first", "Top — most engaged first"],
+            "enum": [
+                "latest",
+                "top"
+            ],
+            "enumTitles": [
+                "Latest \u2014 newest first",
+                "Top \u2014 most engaged first"
+            ],
             "default": "latest"
         },
         "maxResults": {
@@ -131,12 +145,20 @@
             "default": 100,
             "unit": "tweets"
         },
+        "webhookUrl": {
+            "title": "Finish webhook URL",
+            "type": "string",
+            "description": "Optional. When the run finishes, the summary (counts, timing, the free-tier flag and error tallies) is POSTed as JSON to this URL. Delivery failures are logged and never fail the run.",
+            "editor": "textfield"
+        },
         "proxyConfiguration": {
             "title": "Proxy configuration",
             "type": "object",
             "description": "Apify Proxy settings. Residential rotation is supported; pick the RESIDENTIAL group and optionally a country.",
             "editor": "proxy",
-            "default": { "useApifyProxy": true }
+            "default": {
+                "useApifyProxy": true
+            }
         }
     },
     "required": []

@@ -284,7 +284,13 @@ filters combine with **AND**. Full schema: [`.actor/INPUT_SCHEMA.json`](.actor/I
 | `includeReplies` / `includeRetweets` | boolean | Both default `false`. |
 | `sortBy` | enum | `latest` (default) or `top`. |
 | `maxResults` | integer | Requested cap. Subject to the entitlement. |
+| `webhookUrl` | string | Optional. The run summary is POSTed here on finish. |
 | `proxyConfiguration` | object | Standard Apify proxy object; residential supported. |
+
+The finish webhook fires only after the dataset and the `OUTPUT` record are durable, so a
+delivery failure costs a notification and never the run's results. The URL is caller-supplied and
+an Actor is a server-side HTTP client, so the target is validated first: http/https only, and
+loopback, link-local and cloud-metadata hosts are refused.
 
 ```json
 {
@@ -419,6 +425,34 @@ lookup and three pages of 40; cold start and build are excluded, per the brief.
 Where the speed comes from: 40 tweets per page rather than the default 20, one profile lookup per
 handle rather than per page, a cached query-ID map, concurrency across handles, and stopping the
 moment the cap is filled.
+
+### Cost per 1,000 results
+
+Measured, not estimated — the breakdown of the same 100-result run above, at the default 4 GB:
+
+| Component | 100 results | Per 1,000 | Share |
+|---|---|---|---|
+| Compute units | $0.002731 | $0.0273 | 79% |
+| Dataset writes | $0.000500 | $0.0050 | 14% |
+| Key-value store | $0.000205 | $0.0021 | 6% |
+| Data transfer | $0.000021 | $0.0002 | 1% |
+| **Total** | **$0.003457** | **≈ $0.035** | |
+
+Apify Proxy datacenter is included in the plan, so it adds nothing here. Residential is billed
+per GB; this run moved ~0.25 MB of traffic per 100 results, so residential would add roughly
+$0.002–0.003 per 1,000 at typical per-GB rates.
+
+**The memory knob is the real lever.** Compute is 79% of the bill, and Apify scales CPU with
+memory — so memory trades cost against wall-clock directly. Both points below are Grade A:
+
+| Memory | Time to 100 | Cost / 1k | |
+|---|---|---|---|
+| 4 GB (default) | **8.2 s** | ≈ $0.035 | measured |
+| 1 GB | **12.7 s** | ≈ $0.018 | time measured; cost derived from the compute-unit rate |
+
+The default is 4 GB because the brief grades time-to-100. For a large scheduled backfill where
+latency does not matter, drop to 1 GB and pay roughly half. The Actor is I/O-bound, which is why
+quartering the memory costs only ~55% more wall-clock rather than 4×.
 
 **Honest caveat on the proxy.** The brief measures with a residential proxy. This was measured on
 an Apify **free** plan, which reports `RESIDENTIAL` with `availableCount: 0` — residential IPs are

@@ -22,6 +22,8 @@ export interface HttpRequest {
     readonly headers?: Readonly<Record<string, string>>;
     readonly proxyUrl?: string | undefined;
     readonly timeoutMs?: number;
+    /** Request body, for POSTs. Callers set their own `content-type`. */
+    readonly body?: string;
 }
 
 export interface HttpResponse {
@@ -63,6 +65,7 @@ export async function performRequest(request: HttpRequest): Promise<HttpResponse
         // `exactOptionalPropertyTypes` an explicit `undefined` is not the same
         // as an absent key, and got-scraping's option type rejects it.
         ...(request.proxyUrl !== undefined ? { proxyUrl: request.proxyUrl } : {}),
+        ...(request.body !== undefined ? { body: request.body } : {}),
         timeout: { request: request.timeoutMs ?? DEFAULTS.requestTimeoutMs },
         // Retries are this project's own concern; the library must not
         // second-guess them or the backoff policy becomes unobservable.

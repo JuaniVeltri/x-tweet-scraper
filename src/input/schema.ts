@@ -84,6 +84,12 @@ export const inputSchema = z.object({
      */
     maxResults: z.int().min(1).max(1_000_000).default(100),
 
+    /**
+     * Finish webhook (§11 bonus). Validated again before use — a user-supplied
+     * URL is an SSRF vector, so scheme and host are checked at send time.
+     */
+    webhookUrl: z.url().optional(),
+
     // --- platform ----------------------------------------------------------
     proxyConfiguration: z
         .object({

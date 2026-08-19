@@ -26,6 +26,7 @@ import { fetchUserTweetsPage } from '../x/operations/user-tweets.js';
 import { SeenSet, StallDetector } from './dedupe.js';
 import { type ResultEmitter } from './emitter.js';
 import type { RunState } from './state.js';
+import { postRunSummary } from './webhook.js';
 
 export interface RunContext {
     readonly input: ScraperInput;
@@ -129,6 +130,13 @@ export async function runScraper(context: RunContext): Promise<RunSummary> {
     });
 
     await Actor.setValue('OUTPUT', summary);
+
+    // Fired after the dataset and OUTPUT are already durable, so a webhook
+    // failure can only cost a notification, never the run's results.
+    if (input.webhookUrl !== undefined) {
+        await postRunSummary(input.webhookUrl, summary, Actor.getEnv().actorRunId);
+    }
+
     await Actor.setStatusMessage(
         summary.limited
             ? `Pushed ${summary.pushed} items (free-tier cap of ${summary.cap} applied).`
