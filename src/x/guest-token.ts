@@ -23,7 +23,16 @@ interface PooledToken {
     readonly acquiredAt: number;
     /** Proxy URL this token was minted through; reused for affinity. */
     readonly proxyUrl: string | undefined;
-    lastUsedAt: number;
+    /**
+     * Monotonic lease counter, not a timestamp.
+     *
+     * Wall-clock time is the wrong ordering key here: a run issues several
+     * requests inside the same millisecond, which gives every token an identical
+     * `Date.now()` and makes a strict `<` comparison never true. The pool then
+     * hands out the first token forever — rotation silently stops, one token
+     * absorbs the whole 50-per-window budget, and the rest sit idle.
+     */
+    lastUsedSeq: number;
     uses: number;
 }
 
@@ -51,6 +60,8 @@ export class GuestTokenPool {
     private readonly nextProxyUrl: () => Promise<string | undefined>;
     private readonly now: () => number;
     private acquisitions = 0;
+    /** Ticks once per lease; the ordering key for LRU rotation. */
+    private leaseSeq = 0;
 
     constructor(
         private readonly fetchToken: GuestTokenFetcher,
@@ -83,7 +94,7 @@ export class GuestTokenPool {
         /* istanbul ignore next -- pool is never empty at this point */
         if (lru === undefined) return this.lease(await this.mint());
         for (const token of this.tokens) {
-            if (token.lastUsedAt < lru.lastUsedAt) lru = token;
+            if (token.lastUsedSeq < lru.lastUsedSeq) lru = token;
         }
         return this.lease(lru);
     }
@@ -100,7 +111,7 @@ export class GuestTokenPool {
     }
 
     private lease(token: PooledToken): GuestTokenLease {
-        token.lastUsedAt = this.now();
+        token.lastUsedSeq = ++this.leaseSeq;
         token.uses += 1;
         return { value: token.value, proxyUrl: token.proxyUrl };
     }
@@ -113,7 +124,7 @@ export class GuestTokenPool {
             value,
             proxyUrl,
             acquiredAt: this.now(),
-            lastUsedAt: this.now(),
+            lastUsedSeq: ++this.leaseSeq,
             uses: 0,
         };
         this.tokens.push(token);

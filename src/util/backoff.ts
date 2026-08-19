@@ -43,15 +43,27 @@ export function retryDelayMs(
     now: () => number = Date.now,
 ): number {
     if (retryAfterHeader !== undefined) {
-        const seconds = Number(retryAfterHeader);
-        if (Number.isFinite(seconds) && seconds >= 0) {
-            return Math.min(options.maxMs, Math.ceil(seconds * 1000));
+        const trimmed = retryAfterHeader.trim();
+        // Delay-seconds form. Matched by shape rather than by `Number()`, because
+        // `Number` also accepts values the header may not take — and a malformed
+        // one such as "-5" would otherwise fall through to `Date.parse`, which
+        // reads it as a year, clamps to zero, and retries with no backoff at all.
+        // Retrying instantly is the worst possible response to a 429.
+        if (/^\d+(\.\d+)?$/.test(trimmed)) {
+            return Math.min(options.maxMs, Math.ceil(Number(trimmed) * 1000));
         }
-        const asDate = Date.parse(retryAfterHeader);
-        if (!Number.isNaN(asDate)) {
-            return Math.min(options.maxMs, Math.max(0, asDate - now()));
+        // HTTP-date form — required to contain letters before `Date.parse` sees
+        // it. `Date.parse` happily reads a bare number as a year ("-5" becomes
+        // 2001), which would resolve to a date in the past, clamp to zero, and
+        // retry with no backoff at all.
+        if (/[A-Za-z]/.test(trimmed)) {
+            const asDate = Date.parse(trimmed);
+            if (!Number.isNaN(asDate)) {
+                return Math.min(options.maxMs, Math.max(0, asDate - now()));
+            }
         }
     }
+    // Absent or malformed: fall back to computed backoff rather than trusting it.
     return backoffDelayMs(attempt, options, random);
 }
 

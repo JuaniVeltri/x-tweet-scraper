@@ -595,25 +595,46 @@ and `migrating`, so a migrated run resumes instead of restarting and re-emitting
 ## Tests
 
 ```bash
-npm test                # 139 tests
+npm test                # 214 tests
 npm run test:coverage   # with the coverage report
 ```
 
 The suite runs against **real captured API responses**, not hand-written fixtures.
 
-Coverage is reported where it means something rather than as one blended number.
-The parts that are graded and the parts where a silent bug would be expensive are
-covered hard; the network layer is not unit-tested at all, because mocking an
-HTTP client mostly tests the mock — that code is verified by live runs on the
-platform instead.
+Coverage sits at **57%** overall, reported per module rather than as one blended
+number — the parts that are graded and the parts where a silent bug would be
+expensive are covered hard, while the HTTP transport is deliberately untested
+because mocking an HTTP client mostly tests the mock. That code is verified by
+live runs on the platform instead.
 
 | Module | Statements | Lines | Why |
 |---|---|---|---|
-| `pipeline/emitter.ts` | 93% | 97% | The cap. Every bypass path has a test. |
+| `util/errors.ts` | 100% | 100% | The failure classification the whole retry policy rests on. |
+| `x/guest-token.ts` | 98% | 98% | Rotation, TTL, retirement, proxy affinity. |
 | `normalize/tweet.ts` | 93% | 100% | The output contract clients build on. |
-| `entitlements/verify.ts` | 85% | 92% | Signatures, nonce, freshness. |
+| `pipeline/emitter.ts` | 93% | 97% | The cap. Every bypass path has a test. |
 | `filters/apply.ts` | 93% | 94% | Filter semantics. |
-| `x/http.ts`, `pipeline/run.ts` | 0% | 0% | Network and orchestration — exercised live. |
+| `x/query-ids.ts` | 91% | 100% | The resolution chain and its ordering. |
+| `entitlements/verify.ts` | 85% | 92% | Signatures, nonce, freshness. |
+| `x/http.ts` | 0% | 0% | Transport — exercised live, not mocked. |
+
+### Two bugs these tests found
+
+Worth recording, because both were invisible in normal operation and neither
+would have been caught by reading the code.
+
+**Guest-token rotation never happened.** The pool picked the least-recently-used
+token by comparing `Date.now()`, but a run issues several requests inside the
+same millisecond — so every token carried an identical timestamp, the strict
+`<` was never true, and the pool handed out the first token forever. One token
+absorbed the entire 50-per-window budget while the rest sat idle. The ordering
+key is now a monotonic lease counter.
+
+**A malformed `retry-after` retried instantly.** A header of `-5` failed the
+delay-seconds check, fell through to `Date.parse`, which reads a bare number as
+a *year* — resolving to a date in the past, clamping to zero, and retrying with
+no backoff at all. The worst possible response to a 429. Both branches are now
+matched by shape before being trusted.
 
 - **The free-tier cap** — the required proof that a free user requesting 1000 receives exactly 10,
   plus a suite that takes the adversary's side: oversized `maxResults`, a downed service, a service
