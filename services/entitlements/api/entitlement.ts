@@ -64,7 +64,7 @@ function sign(claim: EntitlementClaim, secret: string): string {
 function readAllowList(raw: string | undefined): Map<string, number> {
     const entries = new Map<string, number>();
     if (raw === undefined) return entries;
-    const defaultCap = Number(process.env['ENTITLED_DEFAULT_CAP'] ?? 100_000);
+    const defaultCap = Number(process.env.ENTITLED_DEFAULT_CAP ?? 100_000);
 
     for (const chunk of raw.split(',')) {
         const [id, cap] = chunk.trim().split(':');
@@ -100,7 +100,7 @@ export default async function handler(
     request: IncomingMessage,
     response: ServerResponse,
 ): Promise<void> {
-    const secret = process.env['ENTITLEMENTS_SECRET'];
+    const secret = process.env.ENTITLEMENTS_SECRET;
     if (secret === undefined || secret.length === 0) {
         // Misconfiguration must not read as "everyone is free" — a 500 lets the
         // Actor fall through to its fallback authority instead.
@@ -112,10 +112,10 @@ export default async function handler(
     const body = request.method === 'POST' ? await readBody(request) : {};
     const userId =
         headerOf(request, 'x-entitlement-user-id') ??
-        (typeof body['userId'] === 'string' ? body['userId'] : undefined);
+        (typeof body.userId === 'string' ? body.userId : undefined);
     const nonce =
         headerOf(request, 'x-entitlement-nonce') ??
-        (typeof body['nonce'] === 'string' ? body['nonce'] : undefined);
+        (typeof body.nonce === 'string' ? body.nonce : undefined);
 
     if (userId === undefined || nonce === undefined) {
         response.writeHead(400, { 'content-type': 'application/json' });
@@ -128,7 +128,7 @@ export default async function handler(
         return;
     }
 
-    const allowList = readAllowList(process.env['ENTITLED_USER_IDS']);
+    const allowList = readAllowList(process.env.ENTITLED_USER_IDS);
     const entitledCap = allowList.get(userId);
 
     const claim: EntitlementClaim = {

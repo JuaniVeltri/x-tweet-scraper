@@ -11,8 +11,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 export default function handler(_request: IncomingMessage, response: ServerResponse): void {
     const configured =
-        typeof process.env['ENTITLEMENTS_SECRET'] === 'string' &&
-        process.env['ENTITLEMENTS_SECRET'].length > 0;
+        typeof process.env.ENTITLEMENTS_SECRET === 'string' &&
+        process.env.ENTITLEMENTS_SECRET.length > 0;
 
     response.writeHead(configured ? 200 : 503, {
         'content-type': 'application/json',
@@ -29,7 +29,7 @@ export default function handler(_request: IncomingMessage, response: ServerRespo
 
 /** Count only — the IDs themselves are not disclosed. */
 function readAllowListSize(): number {
-    const raw = process.env['ENTITLED_USER_IDS'];
+    const raw = process.env.ENTITLED_USER_IDS;
     if (raw === undefined || raw.trim().length === 0) return 0;
     return raw.split(',').filter((entry) => entry.trim().length > 0).length;
 }

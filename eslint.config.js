@@ -14,10 +14,12 @@ export default tseslint.config(
     {
         languageOptions: {
             parserOptions: {
-                // tsconfig.test.json is the widest project: it covers src/,
-                // tests/ and the vitest config, so type-aware rules apply
-                // everywhere rather than only to the build inputs.
-                project: ['./tsconfig.test.json'],
+                // tsconfig.test.json is the widest project for the Actor: it
+                // covers src/, tests/ and the vitest config, so type-aware
+                // rules apply everywhere rather than only to the build inputs.
+                // The entitlements service is a separate project with its own
+                // tsconfig, listed here so it is linted rather than skipped.
+                project: ['./tsconfig.test.json', './services/entitlements/tsconfig.json'],
                 tsconfigRootDir: import.meta.dirname,
             },
         },
