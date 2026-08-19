@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Apify local storage (datasets, key-value stores, request queues created by local runs)
+storage/
+apify_storage/
+crawlee_storage/
+
+# Local environment / secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Test & coverage artifacts
+coverage/
+.vitest/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Agent working notes — local only, intentionally not part of the deliverable
+CLAUDE.md
+.claude/

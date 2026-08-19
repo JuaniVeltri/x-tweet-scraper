@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    /* Language & module system — Node 20+ ESM. */
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    /* Node globals (setTimeout, process, Buffer, crypto) — this Actor never
+       touches the DOM, so the DOM lib is deliberately absent. */
+    "types": ["node"],
+
+    /* Strictness. The assessment requires strict mode with no `any` leaking
+       through public boundaries; these flags go beyond plain `strict` to also
+       catch unchecked index access and unsound overrides. */
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Emit. `rootDir` must be `src` so that `tsc` emits `dist/main.js` rather than
+       `dist/src/main.js` — the Dockerfile's CMD refers to the former. */
+    "outDir": "dist",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "declaration": false,
+    "removeComments": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "tests"]
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "operation": "UserByScreenName",
+    "queryId": "Gb-d6r0vxPOADdG62OEBpQ",
+    "httpStatus": 200,
+    "verdict": "GUEST-REACHABLE",
+    "rateLimitPerWindow": "150",
+    "featureSwitchesSent": 12,
+    "fieldTogglesSent": 2
+  },
+  {
+    "operation": "UserTweets",
+    "queryId": "SXVCYB8XHSS25nzIljNtZA",
+    "httpStatus": 200,
+    "verdict": "GUEST-REACHABLE",
+    "rateLimitPerWindow": "50",
+    "featureSwitchesSent": 38,
+    "fieldTogglesSent": 8
+  },
+  {
+    "operation": "TweetResultByRestId",
+    "queryId": "GZsN2Pc4knAoit6pXa4HSA",
+    "httpStatus": 200,
+    "verdict": "GUEST-REACHABLE",
+    "rateLimitPerWindow": "500",
+    "featureSwitchesSent": 36,
+    "fieldTogglesSent": 8
+  },
+  {
+    "operation": "SearchTimeline",
+    "queryId": "hyPfJYJ_XAtDYoslQc-Rgg",
+    "httpStatus": 404,
+    "verdict": "HTTP 404, EMPTY BODY",
+    "rateLimitPerWindow": "50",
+    "featureSwitchesSent": 38,
+    "fieldTogglesSent": 8
+  },
+  {
+    "operation": "UserTweetsAndReplies",
+    "queryId": "qUpkZU6eN8MbtQb7rC_pYg",
+    "httpStatus": 404,
+    "verdict": "HTTP 404, EMPTY BODY",
+    "rateLimitPerWindow": "500",
+    "featureSwitchesSent": 38,
+    "fieldTogglesSent": 8
+  },
+  {
+    "operation": "TweetDetail",
+    "queryId": "XMOz5h24KAZ86qKffKTLdQ",
+    "httpStatus": 404,
+    "verdict": "HTTP 404, EMPTY BODY",
+    "rateLimitPerWindow": "150",
+    "featureSwitchesSent": 38,
+    "fieldTogglesSent": 8
+  },
+  {
+    "operation": "[control] bogus queryId",
+    "queryId": "ZZZZneverExistedZZZZ",
+    "httpStatus": 404,
+    "verdict": "HTTP 404: Query not found"
+  }
+]
