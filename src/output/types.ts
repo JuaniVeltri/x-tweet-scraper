@@ -90,8 +90,14 @@ export interface RunSummary {
         fatal: number;
     };
     targets: {
+        /** Handles scraped, including any discovered from `searchTerms`. */
         users: number;
         tweetIds: number;
+        searchTerms: number;
+        /** Handles found by topic discovery, included in `users`. */
+        discoveredHandles: number;
+        /** Which search engine answered, or `null` when none did. */
+        discoveryEngine: string | null;
     };
     startedAt: string;
     finishedAt: string;

@@ -70,7 +70,14 @@ try {
 
     const client = new XClient(tokens, queryIds);
 
-    const summary = await runScraper({ input, entitlement, client, emitter, state });
+    const summary = await runScraper({
+        input,
+        entitlement,
+        client,
+        emitter,
+        state,
+        nextProxyUrl: async () => proxyConfiguration?.newUrl(),
+    });
 
     await Actor.exit(
         summary.limited

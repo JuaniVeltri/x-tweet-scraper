@@ -108,4 +108,6 @@ export type RawInput = z.infer<typeof inputSchema>;
 export interface ScraperInput extends Omit<RawInput, 'fromUsers' | 'tweetIds' | 'searchTerms'> {
     readonly fromUsers: readonly string[];
     readonly tweetIds: readonly string[];
+    /** Topic terms, resolved to handles via search-engine discovery. */
+    readonly searchTerms: readonly string[];
 }

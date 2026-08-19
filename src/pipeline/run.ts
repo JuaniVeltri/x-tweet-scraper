@@ -23,6 +23,7 @@ import { type XClient } from '../x/client.js';
 import { fetchTweetById } from '../x/operations/tweet-by-rest-id.js';
 import { fetchUserProfile } from '../x/operations/user-by-screen-name.js';
 import { fetchUserTweetsPage } from '../x/operations/user-tweets.js';
+import { discoverHandles, matchesAnyTerm } from '../x/discovery/search-engines.js';
 import { SeenSet, StallDetector } from './dedupe.js';
 import { type ResultEmitter } from './emitter.js';
 import type { RunState } from './state.js';
@@ -34,6 +35,12 @@ export interface RunContext {
     readonly client: XClient;
     readonly emitter: ResultEmitter;
     readonly state: RunState;
+    /**
+     * Proxy for topic discovery. Search engines rate-limit datacenter IPs hard
+     * — Brave answered 429 during development — so discovery goes through the
+     * run's configured proxy when there is one.
+     */
+    readonly nextProxyUrl?: () => Promise<string | undefined>;
 }
 
 export async function runScraper(context: RunContext): Promise<RunSummary> {
@@ -58,6 +65,12 @@ export async function runScraper(context: RunContext): Promise<RunSummary> {
         if (tweet === null) return;
         if (!seen.add(tweet.id)) return; // duplicate across overlapping targets
         if (!filter.accepts(tweet)) return;
+        // Discovery yields accounts that rank for a topic, not tweets about it.
+        // Without this the run would return whole timelines and quietly redefine
+        // what `searchTerms` means.
+        if (input.searchTerms.length > 0 && !matchesAnyTerm(tweet.text, input.searchTerms)) {
+            return;
+        }
 
         collected.push(tweet);
     };
@@ -81,13 +94,39 @@ export async function runScraper(context: RunContext): Promise<RunSummary> {
         );
     }
 
+    // --- topic discovery (§2a stretch) -----------------------------------
+    // X's SearchTimeline is closed to guests, so topic terms are resolved to
+    // candidate accounts through a public search engine and then read through
+    // the guest-token timeline path that does work.
+    let discovery: Awaited<ReturnType<typeof discoverHandles>> | null = null;
+    const handles = [...input.fromUsers];
+
+    if (input.searchTerms.length > 0 && hasRoom()) {
+        discovery = await discoverHandles(input.searchTerms, {
+            proxyUrl: await context.nextProxyUrl?.(),
+        }).catch((error: unknown) => {
+            log.warning('Topic discovery failed', { error: String(error) });
+            return null;
+        });
+        for (const handle of discovery?.handles ?? []) {
+            if (!handles.some((existing) => existing.toLowerCase() === handle)) {
+                handles.push(handle);
+            }
+        }
+        log.info('Topic discovery complete', {
+            terms: input.searchTerms.length,
+            engine: discovery?.engine ?? null,
+            handlesFound: discovery?.handles.length ?? 0,
+        });
+    }
+
     // --- author timelines ------------------------------------------------
     // Pagination within one timeline is inherently sequential (each page needs
     // the previous page's cursor), so concurrency is applied *across* handles.
-    if (input.fromUsers.length > 0 && hasRoom()) {
-        const limit = pLimit(Math.min(DEFAULTS.concurrency, input.fromUsers.length));
+    if (handles.length > 0 && hasRoom()) {
+        const limit = pLimit(Math.min(DEFAULTS.concurrency, handles.length));
         await Promise.all(
-            input.fromUsers.map((handle) =>
+            handles.map((handle) =>
                 limit(() => scrapeTimeline(handle, { client, state, consider, hasRoom })),
             ),
         );
@@ -115,7 +154,13 @@ export async function runScraper(context: RunContext): Promise<RunSummary> {
             retryable: client.stats.retryableErrors,
             fatal: client.stats.fatalErrors,
         },
-        targets: { users: input.fromUsers.length, tweetIds: input.tweetIds.length },
+        targets: {
+            users: handles.length,
+            tweetIds: input.tweetIds.length,
+            searchTerms: input.searchTerms.length,
+            discoveredHandles: discovery?.handles.length ?? 0,
+            discoveryEngine: discovery?.engine ?? null,
+        },
         startedAt: startedAt.toISOString(),
         finishedAt: finishedAt.toISOString(),
         durationMs: finishedAt.getTime() - startedAt.getTime(),

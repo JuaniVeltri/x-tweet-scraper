@@ -50,43 +50,26 @@ describe('targets', () => {
     });
 });
 
-describe('searchTerms is refused with an explanation, not silence', () => {
-    const attempt = (): unknown => parseInput({ searchTerms: ['apify'] });
-
-    it('throws rather than returning nothing', () => {
-        expect(attempt).toThrow(InputValidationError);
+describe('searchTerms is accepted as a discovery target', () => {
+    it('is a valid target on its own', () => {
+        const input = parseInput({ searchTerms: ['web scraping'] });
+        expect(input.searchTerms).toEqual(['web scraping']);
+        expect(input.fromUsers).toEqual([]);
     });
 
-    it('says plainly that it is unsupported', () => {
-        expect(attempt).toThrow(/searchTerms is not supported/);
+    it('combines with explicit handles', () => {
+        const input = parseInput({ fromUsers: ['apify'], searchTerms: ['scraping'] });
+        expect(input.fromUsers).toEqual(['apify']);
+        expect(input.searchTerms).toEqual(['scraping']);
     });
 
-    it('explains why, with the evidence', () => {
-        let message = '';
-        try {
-            attempt();
-        } catch (error: unknown) {
-            message = error instanceof Error ? error.message : '';
-        }
-
-        // The operation and the reason.
-        expect(message).toContain('SearchTimeline');
-        expect(message).toContain('guest token');
-        // The measurement, including the control that makes it conclusive.
-        expect(message).toContain('404, empty body');
-        expect(message).toContain('Query not found');
-        // What to do instead.
-        expect(message).toMatch(/Use fromUsers and\/or tweetIds/);
+    it('deduplicates terms case-insensitively', () => {
+        const input = parseInput({ searchTerms: ['Scraping', 'scraping', 'SCRAPING', 'apis'] });
+        expect(input.searchTerms).toEqual(['Scraping', 'apis']);
     });
 
-    it('is ignored when empty, since an empty array asks for nothing', () => {
-        expect(() => parseInput({ fromUsers: ['apify'], searchTerms: [] })).not.toThrow();
-    });
-
-    it('takes precedence over the missing-target error', () => {
-        // searchTerms alone is not a usable target, but the specific
-        // explanation is far more useful than "no targets".
-        expect(() => parseInput({ searchTerms: ['apify'] })).toThrow(/not supported/);
+    it('still requires some target when every list is empty', () => {
+        expect(() => parseInput({ searchTerms: [] })).toThrow(/At least one target/);
     });
 });
 

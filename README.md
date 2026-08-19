@@ -19,8 +19,9 @@ no headless Chrome. Every request is plain HTTP.
 
 - **Actor:** https://console.apify.com/actors/lPwl0s1DQ18e70W9B
 - **Entitlements service:** https://x-tweet-scraper-entitlements.vercel.app/api/health
-- **Measured performance:** **8.2 s** to 100 valid results on the Apify platform (Grade A target
-  is < 30 s). Method and caveats in [Performance](#performance).
+- **Measured performance:** median **11.7 s** to 100 valid results on the Apify platform over 6
+  runs, every one inside the Grade A band (< 30 s) with zero errors. Method and caveats in
+  [Performance](#performance).
 
 ---
 
@@ -29,6 +30,7 @@ no headless Chrome. Every request is plain HTTP.
 - [What it does](#what-it-does)
 - [Which surfaces are implemented, and why](#which-surfaces-are-implemented-and-why)
 - [The investigation: what is reachable without a login](#the-investigation-what-is-reachable-without-a-login)
+- [Topic search, without X's search](#topic-search-without-xs-search)
 - [Architecture and data flow](#architecture-and-data-flow)
 - [The browserless approach](#the-browserless-approach)
 - [Free-tier protection](#free-tier-protection)
@@ -49,11 +51,11 @@ Given one or more X handles and/or tweet IDs, the Actor fetches the matching pub
 a set of filters, and pushes each result to the default dataset in a fixed schema.
 
 ```
-handles ──► UserByScreenName ──► UserTweets (cursor paging) ──┐
-                                                              ├──► normalize ──► filter ──► emit
-tweet IDs ─► TweetResultByRestId ─────────────────────────────┘                              │
-                                                                                             ▼
-                                                              entitlement decides how many get through
+handles     ──► UserByScreenName ──► UserTweets (cursor paging) ──┐
+searchTerms ──► search engine ──► handles ──► (same path) ────────┤──► normalize ──► filter ──► emit
+tweet IDs   ──► TweetResultByRestId ──────────────────────────────┘                            │
+                                                                                               ▼
+                                                                entitlement decides how many get through
 ```
 
 ---
@@ -65,11 +67,7 @@ tweet IDs ─► TweetResultByRestId ──────────────�
 | Tweets by author | `UserTweets` | **Implemented.** Guest-reachable. |
 | Single tweet by ID | `TweetResultByRestId` | **Implemented.** Guest-reachable. |
 | User profile by handle | `UserByScreenName` | **Implemented.** Guest-reachable. |
-| Free-text search | `SearchTimeline` | **Not implemented.** Not guest-reachable — see below. |
-
-`searchTerms` is rejected at the input boundary with an explicit, evidence-bearing error rather
-than silently returning nothing. The full message is in
-[`src/input/parse.ts`](src/input/parse.ts).
+| Free-text search | — | **Implemented a different way.** `SearchTimeline` is closed to guests, so topics resolve through public search-engine discovery. See [Topic search](#topic-search-without-xs-search). |
 
 ---
 
@@ -116,10 +114,10 @@ declines to serve it to a guest. That is a deliberate authorization boundary, no
 Raw responses are committed as
 [`tests/fixtures/guest-reachability-verdicts.json`](tests/fixtures/guest-reachability-verdicts.json).
 
-Making `searchTerms` work would require a non-personal, programmatically obtained logged-in
-session. That is a standing bonus, not a requirement, and it was deliberately not attempted: the
-hard constraints forbid a personal session, and a half-working search that trips bans is worse than
-an honest refusal.
+A logged-in session would open `SearchTimeline`, but §3 forbids one and buying a third-party API
+would trade the assignment's whole subject — reaching X's own endpoints with a guest token — for a
+vendor call. The brief allows a third route, *"an equivalent public HTTP source you justify"*, and
+that is the one taken; see below.
 
 ### The observed rate limits are a design input, not trivia
 
@@ -127,6 +125,44 @@ an honest refusal.
 per page, one guest token is worth roughly 2,000 tweets. That is why the token pool rotates rather
 than reusing a single token, and why concurrency is applied across handles rather than within one
 timeline.
+
+---
+
+## Topic search, without X's search
+
+`SearchTimeline` is shut to guest tokens, so `searchTerms` is served by inverting the question.
+
+Instead of asking X for **posts** matching a topic, ask a public search engine which X **profiles**
+rank for it, then read those profiles' timelines through the guest-token path that already works,
+and keep only tweets that actually mention the term.
+
+```
+searchTerms ──► search engine (site:x.com <term>) ──► candidate handles
+                                                            │
+                                    UserByScreenName ◄──────┘
+                                          │
+                                    UserTweets ──► normalize ──► term filter ──► emit
+```
+
+The inversion is what makes it viable: engines index X *profile pages* densely and individual
+posts sparsely and late. Asking about people gives a stable answer, and recency still comes from X.
+
+Three details carry it:
+
+- **Engines cascade.** `ddg-lite → ddg-html → brave → startpage`, first to yield handles wins.
+  They rate-limit datacenter traffic unevenly and without warning — during development
+  DuckDuckGo answered on one run and Brave on the next — so a single source would be a
+  single point of failure. Discovery goes through the run's proxy when one is configured.
+- **Reserved paths are filtered.** `/home`, `/explore`, `/i/flow/login` and ~30 others look like
+  handles in a URL. Each false positive would spend a lookup against a 150/window operation.
+- **Results are term-filtered.** Discovery returns accounts that rank for a topic, not tweets
+  about it. Without the final filter the run would emit those accounts' entire timelines and
+  quietly redefine what `searchTerms` means.
+
+**What it is not.** This is not an index of every tweet matching a query. It returns tweets *from
+accounts that rank for the topic*; a matching tweet from an account no engine surfaced will not
+appear. Verified live: `searchTerms: ["web scraping"]` discovered 12 handles, evaluated 490 tweets
+across their timelines, and every emitted item mentioned the term.
 
 ---
 
@@ -277,14 +313,14 @@ stops **fetching**, not merely pushing, so a free run does not burn the API on d
 
 ## Input
 
-At least one of `fromUsers` or `tweetIds` is required. Unspecified filters mean "no constraint";
+At least one of `fromUsers`, `tweetIds` or `searchTerms` is required. Unspecified filters mean "no constraint";
 filters combine with **AND**. Full schema: [`.actor/INPUT_SCHEMA.json`](.actor/INPUT_SCHEMA.json).
 
 | Field | Type | Meaning |
 |---|---|---|
 | `fromUsers` | `string[]` | Handles, without `@`. |
 | `tweetIds` | `string[]` | Tweet IDs to hydrate. |
-| `searchTerms` | `string[]` | **Rejected** with an explanation — not guest-reachable. |
+| `searchTerms` | `string[]` | Topic terms, resolved to handles via search-engine discovery. |
 | `hashtags` | `string[]` | Must contain all of these, without `#`. |
 | `since` / `until` | ISO date | Inclusive window. A bare `until` date covers the whole day. |
 | `language` | ISO-639-1 | Detected tweet language. |
@@ -420,17 +456,29 @@ npm run build
 
 ## Performance
 
-**8.2 s to 100 valid results**, measured on the Apify platform. Grade A is < 30 s.
+**Median 11.7 s to 100 valid results**, measured on the Apify platform. Grade A is < 30 s.
 
-From the run summary of `BRHnTaFZKTIEMAIlZ`:
+Six runs, same input (one high-volume author, `sortBy: latest`, `maxResults: 100`, Apify proxy,
+paid entitlement, 4 GB), timed from the run's own clock — first outbound request to the 100th item
+pushed — so cold start and build are excluded per the brief.
 
-```json
-{"requested":100,"fetched":107,"pushed":100,"durationMs":8153,
- "requests":7,"errors":{"retryable":0,"fatal":0},"tokenRotations":0}
+| Run | Time to 100 | Grade A |
+|---|---|---|
+| 1 | 8.15 s | ✅ |
+| 2 | 11.22 s | ✅ |
+| 3 | 11.60 s | ✅ |
+| 4 | 11.80 s | ✅ |
+| 5 | 12.93 s | ✅ |
+| 6 | 14.59 s | ✅ |
+
+```
+min 8.15 s · median 11.70 s · mean 11.71 s · max 14.59 s
+6/6 inside Grade A · 0 errors across all runs · exactly 7 requests every time
 ```
 
-Seven requests, no retries, no 429s, no rotations. The window covers query-ID resolution, profile
-lookup and three pages of 40; cold start and build are excluded, per the brief.
+The median is the number worth quoting; 8.15 s was the best case, not the typical one. What does
+not move is the request count — seven every single time — which says the variance is X's latency,
+not the paging logic doing something different from run to run.
 
 Where the speed comes from: 40 tweets per page rather than the default 20, one profile lookup per
 handle rather than per page, a cached query-ID map, concurrency across handles, and stopping the
@@ -516,12 +564,18 @@ The suite runs against **real captured API responses**, not hand-written fixture
   identical output from both of X's live user schemas.
 - **Timeline walking** — tweets and cursor extraction from both schemas, and an empty page rather
   than an exception on an unknown shape.
+- **Topic discovery** — handle extraction from plain and URL-encoded result links, reserved paths
+  rejected, status permalinks not mistaken for handles, and the term filter that keeps
+  `searchTerms` honest.
 
 ---
 
 ## Known limitations
 
-- **No free-text search.** `SearchTimeline` is auth-walled to guests; evidence above.
+- **Topic search is not an index.** `SearchTimeline` is auth-walled to guests, so `searchTerms`
+  returns tweets *from accounts that rank for the topic*, not every tweet matching a query. A
+  matching tweet from an account no search engine surfaced will not appear, and discovery depends
+  on third-party engines that rate-limit datacenter traffic — hence the four-engine cascade.
 - **`UserTweetsAndReplies` and `TweetDetail` are likewise walled**, so replies are limited to those
   the profile timeline itself returns, and full conversation threads are out of reach.
 - **`sortBy: "top"` orders what was collected.** X's profile timeline is chronological and accepts

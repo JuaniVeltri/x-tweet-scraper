@@ -1,6 +1,6 @@
 {
     "title": "X (Twitter) Tweet Scraper",
-    "description": "Pick at least one target (fromUsers or tweetIds). Every other field is a filter; unspecified filters mean 'no constraint' and filters combine with AND semantics.",
+    "description": "Pick at least one target: fromUsers, tweetIds or searchTerms. Every other field is a filter; unspecified filters mean 'no constraint' and filters combine with AND semantics.",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
@@ -22,9 +22,9 @@
             "uniqueItems": true
         },
         "searchTerms": {
-            "title": "Search terms (NOT SUPPORTED \u2014 see README)",
+            "title": "Search terms (topic discovery)",
             "type": "array",
-            "description": "Free-text search. NOT SUPPORTED by this Actor: X's SearchTimeline operation is auth-walled to guest tokens, and this Actor deliberately uses guest tokens only. Supplying this field fails the run with an explicit error rather than silently returning nothing. See the README for the evidence behind that conclusion.",
+            "description": "Free-text topics. X's own SearchTimeline is closed to guest tokens, so these are resolved a different way: a public search engine is asked which X profiles rank for the topic, those profiles' timelines are read through the guest-token path, and only tweets actually mentioning a term are kept. This finds tweets by accounts that rank for the topic \u2014 it is not an exhaustive index of every matching tweet. See the README.",
             "editor": "stringList",
             "uniqueItems": true
         },

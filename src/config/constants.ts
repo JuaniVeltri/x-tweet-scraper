@@ -113,6 +113,10 @@ export const DEFAULTS = {
     maxEmptyPages: 3,
     /** How long a resolved query-ID map stays cached in the key-value store. */
     queryIdCacheTtlMs: 6 * 60 * 60 * 1000,
+    /** Search-engine lookups per run, so a long term list cannot become a crawl. */
+    maxDiscoveryQueries: 5,
+    /** Handles discovered per run and fed into the timeline path. */
+    maxDiscoveredHandles: 12,
 } as const;
 
 /** The item cap applied to any run that is not entitled to more (assessment §6). */
