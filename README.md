@@ -174,6 +174,47 @@ across their timelines, and every emitted item mentioned the term.
 
 ## Architecture and data flow
 
+```mermaid
+flowchart TB
+    IN["Actor input"] --> V{"zod validation<br/>at the boundary"}
+    V -->|invalid| ERR["fail with a<br/>readable message"]
+    V -->|valid| ENT
+
+    subgraph ENT ["entitlement — the only thing that may set a cap"]
+        direction TB
+        ID["identity from APIFY_USER_ID"] --> XCHK{"matches Apify's<br/>own run record?"}
+        XCHK -->|no| CLOSED["fail closed → 10"]
+        XCHK -->|yes| SVC["signed endpoint<br/>HMAC + nonce + freshness"]
+        SVC -->|unreachable, forged,<br/>replayed, unknown| CLOSED
+        SVC -->|verified| CAP["cap = claim.cap"]
+    end
+
+    ENT --> EM["ResultEmitter<br/>limit fixed at construction"]
+
+    IN -.targets.-> SRC
+    subgraph SRC ["extraction — guest token only, no browser"]
+        direction TB
+        GT["guest token pool<br/>acquire · rotate · retire"]
+        QID["query IDs resolved at runtime<br/>from x.com's own bundle"]
+        GT --> OPS
+        QID --> OPS
+        OPS["UserByScreenName · UserTweets<br/>TweetResultByRestId"]
+        SE["search engine cascade<br/>topic → candidate handles"] --> OPS
+    end
+
+    SRC --> NORM["normalize<br/>handles both live user schemas"]
+    NORM --> FILT["filters · AND semantics<br/>dedupe · term match"]
+    FILT --> EM
+    EM -->|"asks: still open?"| SRC
+    EM --> DS[("default dataset")]
+    EM --> OUT[("OUTPUT<br/>run summary")]
+```
+
+Two things the diagram is meant to make obvious: the entitlement is resolved
+*before* any fetching starts, and the emitter feeds back into extraction — when
+its limit is reached the producers stop, so a capped run stops fetching rather
+than fetching everything and discarding most of it.
+
 ```
 src/
 ├── main.ts                     wiring only — no policy lives here
@@ -554,10 +595,25 @@ and `migrating`, so a migrated run resumes instead of restarting and re-emitting
 ## Tests
 
 ```bash
-npm test
+npm test                # 139 tests
+npm run test:coverage   # with the coverage report
 ```
 
 The suite runs against **real captured API responses**, not hand-written fixtures.
+
+Coverage is reported where it means something rather than as one blended number.
+The parts that are graded and the parts where a silent bug would be expensive are
+covered hard; the network layer is not unit-tested at all, because mocking an
+HTTP client mostly tests the mock — that code is verified by live runs on the
+platform instead.
+
+| Module | Statements | Lines | Why |
+|---|---|---|---|
+| `pipeline/emitter.ts` | 93% | 97% | The cap. Every bypass path has a test. |
+| `normalize/tweet.ts` | 93% | 100% | The output contract clients build on. |
+| `entitlements/verify.ts` | 85% | 92% | Signatures, nonce, freshness. |
+| `filters/apply.ts` | 93% | 94% | Filter semantics. |
+| `x/http.ts`, `pipeline/run.ts` | 0% | 0% | Network and orchestration — exercised live. |
 
 - **The free-tier cap** — the required proof that a free user requesting 1000 receives exactly 10,
   plus a suite that takes the adversary's side: oversized `maxResults`, a downed service, a service

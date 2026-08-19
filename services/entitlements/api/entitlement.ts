@@ -35,7 +35,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 type Tier = 'free' | 'paid';
 
-interface EntitlementClaim {
+export interface EntitlementClaim {
     userId: string;
     tier: Tier;
     cap: number;
@@ -52,11 +52,11 @@ const FREE_TIER_CAP = 10;
  * A positional array rather than an object, so the encoding cannot drift with
  * key ordering on either side.
  */
-function canonicalize(claim: EntitlementClaim): string {
+export function canonicalize(claim: EntitlementClaim): string {
     return JSON.stringify([claim.userId, claim.tier, claim.cap, claim.issuedAt, claim.nonce]);
 }
 
-function sign(claim: EntitlementClaim, secret: string): string {
+export function sign(claim: EntitlementClaim, secret: string): string {
     return createHmac('sha256', secret).update(canonicalize(claim)).digest('hex');
 }
 
