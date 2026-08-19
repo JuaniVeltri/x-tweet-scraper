@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/banner.png" alt="X (Twitter) GraphQL Tweet Scraper — an Apify Actor that reads X's internal GraphQL API over plain HTTP, with guest-token rotation, cursor pagination and a server-authoritative free-tier cap" width="100%">
+</p>
+
 # x-tweet-scraper
 
 A browserless Apify Actor that collects public posts from X (Twitter) over its internal GraphQL
