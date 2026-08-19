@@ -1,7 +1,6 @@
 {
     "actorSpecification": 1,
     "fields": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "description": "One public tweet, normalized. Missing values are null — never omitted and never undefined — so consumers can rely on every key being present. IDs are strings because X's snowflake IDs exceed Number.MAX_SAFE_INTEGER. Timestamps are ISO-8601 UTC.",
         "properties": {

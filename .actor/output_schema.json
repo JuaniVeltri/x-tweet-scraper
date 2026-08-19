@@ -1,14 +1,17 @@
 {
+    "$schema": "https://apify.com/schemas/v1/output.ide.json",
     "actorOutputSchemaVersion": 1,
     "title": "X tweet scraper output",
     "description": "Tweets land in the default dataset, one item per tweet, conforming to the dataset schema. The run summary — requested vs fetched vs pushed, the free-tier flag, and error counts — is written to the OUTPUT record of the default key-value store.",
     "properties": {
         "tweets": {
+            "type": "string",
             "title": "Tweets",
             "description": "Every scraped tweet, normalized to the documented contract.",
             "template": "{{links.apiDefaultDatasetUrl}}/items"
         },
         "summary": {
+            "type": "string",
             "title": "Run summary",
             "description": "Counts, timing, error tallies, and whether the free-tier cap applied: { limited, reason, cap, tier }.",
             "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/OUTPUT"
